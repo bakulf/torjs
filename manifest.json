@@ -1,0 +1,22 @@
+{
+  "manifest_version": 2,
+  "version": "0.1",
+  "name": "torjs-webext",
+  "description":
+    "Experimental Firefox WebExtensions that starts a Tor wasm client using libdweb APIs.",
+  "permissions": ["proxy", "<all_urls>"],
+
+  "experiment_apis": {
+    "TCPSocket": {
+      "schema": "./external/libdweb/src/toolkit/components/extensions/schemas/tcp.json",
+      "child": {
+        "scopes": ["addon_child"],
+        "paths": [["TCPSocket"]],
+        "script": "./external/libdweb/src/toolkit/components/extensions/child/ext-tcp.js"
+      }
+    }
+  },
+  "background": {
+    "scripts": ["./external/ceba.js/build/tor.js", "./src/main.js"]
+  }
+}
