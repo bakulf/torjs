@@ -1,6 +1,6 @@
 # torjs-webext.js
 
-A WebExtension that runs an *experimental* WebAssembly Tor client, using mozilla/libdweb for TCP networking APIs.
+A WebExtension that runs an *experimental* WebAssembly Tor client, using [libdweb](https://github.com/mozilla/libdweb) for TCP networking APIs.
 
 ## Disclaimer
 
