@@ -1,6 +1,3 @@
 [submodule "external/ceba.js"]
 	path = external/ceba.js
 	url = https://github.com/acatarineu/ceba.js.git
-[submodule "external/libdweb"]
-	path = external/libdweb
-	url = https://github.com/mozilla/libdweb.git
