@@ -1,4 +1,5 @@
 import {SocketServer, TcpSocketWrapper} from "./tcp.js";
+import {Controller} from "./controller.js";
 
 const MODE_OFF = "off";
 const MODE_ALL = "all";
@@ -12,11 +13,18 @@ class Main {
 
     // TODO: what if port is used?
     this.port = 10000 + Math.floor(Math.random() * 50000);
+    this.controlPort = 10000 + Math.floor(Math.random() * 50000);
 
     this.instance = Module({
       CustomSocketServer: SocketServer,
       CustomSocket: TcpSocketWrapper,
-      arguments: ['SocksPort', "127.0.0.1:" + this.port.toString()],
+      arguments: [
+        "SocksPort",
+        "127.0.0.1:" + this.port.toString(),
+        "HashedControlPassword",
+        "16:C7191F6762FF41186002DE18CA9B9B088847890EE32023BA13EF5453D7",
+        "+__ControlPort", this.controlPort.toString(),
+      ],
       print: msg => this.torPrint(msg),
     });
 
@@ -25,6 +33,8 @@ class Main {
       {urls: ["<all_urls>"]});
 
     browser.runtime.onConnect.addListener(port => this.portConnected(port));
+
+    this.scheduleControlChannel();
   }
 
   proxyRequestCallback(requestInfo) {
@@ -45,6 +55,7 @@ class Main {
     };
   }
 
+  // TODO: use the controller
   torPrint(msg) {
     console.log("TOR", msg);
 
@@ -73,6 +84,21 @@ class Main {
         state: this.state,
       });
     }
+  }
+
+  async controlChannel() {
+    const controller = new Controller();
+
+    try {
+      await controller.init(this.controlPort);
+      this.controller = controller;
+    } catch (e) {
+      this.scheduleControlChannel();
+    }
+  }
+
+  scheduleControlChannel() {
+    setTimeout(() => this.controlChannel(), 500);
   }
 }
 
