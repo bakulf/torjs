@@ -25,7 +25,6 @@ class Main {
         "16:C7191F6762FF41186002DE18CA9B9B088847890EE32023BA13EF5453D7",
         "+__ControlPort", this.controlPort.toString(),
       ],
-      print: msg => this.torPrint(msg),
     });
 
     browser.proxy.onRequest.addListener(
@@ -55,18 +54,6 @@ class Main {
     };
   }
 
-  // TODO: use the controller
-  torPrint(msg) {
-    console.log("TOR", msg);
-
-    if (this.state === 100 || !msg.includes("Bootstrapped")) {
-      return;
-    }
-
-    this.state = parseInt(msg.match(/Bootstrapped \d+%/)[0].match(/\d+/)[0], 10);
-    this.portUpdate();
-  }
-
   portConnected(port) {
     this.currentPort = port;
 
@@ -86,8 +73,15 @@ class Main {
     }
   }
 
+  bootstrapState(state) {
+    this.state = state;
+    this.portUpdate();
+  }
+
   async controlChannel() {
-    const controller = new Controller();
+    const controller = new Controller({
+      bootstrap: state => this.bootstrapState(state),
+    });
 
     try {
       await controller.init(this.controlPort);

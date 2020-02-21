@@ -7,8 +7,11 @@ const READY = 5;
 const CLOSED = 99;
 
 export class Controller {
-  constructor() {
+  constructor(callbacks) {
     this.state = CONNECTING;
+    this.bootstrapState = 0;
+
+    this.callbacks = callbacks;
 
     this.encoder = new TextEncoder();
     this.decoder = new TextDecoder();
@@ -113,8 +116,42 @@ export class Controller {
           return;
         }
 
-        console.log(message.extra); // TODO...
+        this.parseBootstrap(message.extra);
       });
     }
+  }
+
+  parseBootstrap(msg) {
+    const parts = [];
+
+    let part = "";
+    let quote = false;
+
+    for (let i = 0; i < msg.length; ++i) {
+      const c = msg.charAt(i);
+      if (c == ' ' && !quote) {
+        parts.push(part);
+        part = "";
+        continue;
+      }
+
+      if (c == '"') {
+        quote = !quote;
+      }
+
+      part += c;
+    }
+
+    if (part.length > 0) {
+      parts.push(part);
+    }
+
+    const progress = parseInt(parts.find(p => p.startsWith("PROGRESS=")).split("=")[1]);
+    if (!progress) {
+      return;
+    }
+
+    this.bootstrapState = progress;
+    this.callbacks.bootstrap(progress);
   }
 };
