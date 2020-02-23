@@ -15,23 +15,29 @@ class Main {
     this.port = 10000 + Math.floor(Math.random() * 50000);
     this.controlPort = 10000 + Math.floor(Math.random() * 50000);
 
-    this.instance = Module({
-      CustomSocketServer: SocketServer,
-      CustomSocket: TcpSocketWrapper,
-      arguments: [
-        "SocksPort",
-        "127.0.0.1:" + this.port.toString(),
-        "HashedControlPassword",
-        "16:C7191F6762FF41186002DE18CA9B9B088847890EE32023BA13EF5453D7",
-        "+__ControlPort", this.controlPort.toString(),
-      ],
-    });
-
     browser.proxy.onRequest.addListener(
       requestInfo => this.proxyRequestCallback(requestInfo),
       {urls: ["<all_urls>"]});
 
     browser.runtime.onConnect.addListener(port => this.portConnected(port));
+  }
+
+  async init() {
+    this.instance = Module({
+      CustomSocketServer: SocketServer,
+      CustomSocket: TcpSocketWrapper,
+      logReadFiles: true, // TODO
+      arguments: [
+        "SocksPort",
+        "127.0.0.1:" + this.port.toString(),
+        "HashedControlPassword",
+        "16:C7191F6762FF41186002DE18CA9B9B088847890EE32023BA13EF5453D7",
+        "+__ControlPort", "127.0.0.1:" + this.controlPort.toString(),
+        "Log", "debug",
+        "GeoIPFile", "/geoip",
+        "GeoIPv6File", "/geoip6",
+      ],
+    });
 
     this.scheduleControlChannel();
   }
@@ -97,3 +103,4 @@ class Main {
 }
 
 let main = new Main();
+main.init();
