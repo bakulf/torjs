@@ -7,7 +7,9 @@ const MODE_PB = "pb";
 
 class Main {
   constructor() {
-    this.mode = MODE_PB;
+    this.mode = null;
+    this.requestListener = null;
+
     this.state = 0;
     this.currentPort = null;
 
@@ -15,14 +17,17 @@ class Main {
     this.port = 10000 + Math.floor(Math.random() * 50000);
     this.controlPort = 10000 + Math.floor(Math.random() * 50000);
 
-    browser.proxy.onRequest.addListener(
-      requestInfo => this.proxyRequestCallback(requestInfo),
-      {urls: ["<all_urls>"]});
-
     browser.runtime.onConnect.addListener(port => this.portConnected(port));
   }
 
   async init() {
+    // Let's read the mode.
+    const {mode} = await browser.storage.local.get("mode");
+    this.mode = mode === undefined ? MODE_OFF : mode;
+
+    // Let's set the listener if needed.
+    this.maybeResetProxyListener();
+
     this.instance = Module({
       CustomSocketServer: SocketServer,
       CustomSocket: TcpSocketWrapper,
@@ -43,10 +48,6 @@ class Main {
   }
 
   proxyRequestCallback(requestInfo) {
-    if (this.mode === MODE_OFF) {
-      return null;
-    }
-
     if (this.mode == MODE_PB && !requestInfo.incognito) {
       return null;
     }
@@ -60,11 +61,36 @@ class Main {
     };
   }
 
+  async setMode(mode) {
+    this.mode = mode;
+    await browser.storage.local.set({mode});
+    this.maybeResetProxyListener();
+  }
+
+  maybeResetProxyListener() {
+    if (this.mode === MODE_OFF) {
+      if (this.requestListener) {
+        browser.proxy.onRequest.removeListener(this.requestListener);
+        this.requestListener = null;
+      }
+      return;
+    }
+
+    if (!this.requestListener) {
+      this.requestListener = requestInfo => {
+        return this.proxyRequestCallback(requestInfo);
+      };
+
+      browser.proxy.onRequest.addListener(this.requestListener,
+                                          { urls: ["<all_urls>"] });
+    }
+  }
+
   portConnected(port) {
     this.currentPort = port;
 
-    port.onMessage.addListener(msg => {
-      this.mode = msg.mode;
+    port.onMessage.addListener(async msg => {
+      this.setMode(msg.mode);
     });
 
     this.portUpdate();

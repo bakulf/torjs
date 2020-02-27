@@ -4,7 +4,14 @@
   "name": "torjs-webext",
   "description":
     "Experimental Firefox WebExtensions that starts a Tor wasm client.",
-  "permissions": ["proxy", "<all_urls>"],
+
+  "permissions": [
+    "proxy",
+    "storage",
+    "<all_urls>"
+  ],
+
+  "incognito": "spanning",
 
   "experiment_apis": {
     "TCPSocket": {
