@@ -2,10 +2,6 @@
 all: update install
 	make -C external/ceba.js
 	cp external/ceba.js/build/tor.js src/tor
-	node_modules/.bin/web-ext build \
-		--ignore-files "external/**/!(ceba.js|build|tor.js)" \
-		--ignore-files Makefile package.json package-lock.json \
-		--overwrite-dest
 
 .PHONY:
 clean:
