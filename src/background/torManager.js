@@ -20,7 +20,37 @@ export class TorManager extends Component {
       onListenFailure: () => this.startTor(),
     });
 
+    await this.generatePassword();
+
     this.startTor();
+  }
+
+  async generatePassword() {
+    log("generating password");
+
+    const password = [];
+    const set = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    for (let i = 0; i <16; ++i) {
+      password.push(set.charAt(Math.floor(Math.random() * set.length)));
+    }
+
+    this.password = password.join("");
+
+    // Let's use TOR to obtain an hashed password.
+    return new Promise(resolve => {
+      const instance = Module({
+        arguments: [
+          "--hash-password",
+          this.password,
+        ],
+        print: what => {
+          if (what.startsWith("16:")) {
+            this.hashedPassword = what.trim();
+            resolve();
+          }
+        }
+      });
+    });
   }
 
   startTor() {
@@ -40,7 +70,7 @@ export class TorManager extends Component {
         "SocksPort",
         "127.0.0.1:" + GlobalState.port.toString(),
         "HashedControlPassword",
-        "16:C7191F6762FF41186002DE18CA9B9B088847890EE32023BA13EF5453D7",
+        this.hashedPassword,
         "+__ControlPort", "127.0.0.1:" + GlobalState.controlPort.toString(),
         "GeoIPFile", "/geoip",
         "GeoIPv6File", "/geoip6",
@@ -58,7 +88,7 @@ export class TorManager extends Component {
 
   async controlChannel() {
     log("Control channel");
-    const controller = new Controller({
+    const controller = new Controller(this.password, {
       bootstrap: state => this.bootstrapState(state),
       failure: () => this.scheduleControlChannel(),
     });

@@ -11,9 +11,10 @@ const READY = 5;
 const CLOSED = 99;
 
 export class Controller {
-  constructor(callbacks) {
+  constructor(password, callbacks) {
     log("constructor");
 
+    this.password = password;
     this.state = CONNECTING;
     this.bootstrapState = 0;
 
@@ -32,7 +33,7 @@ export class Controller {
 
     this.controlSocket.opened.then(() => {
       this.state = CONNECTED;
-      this.write("AUTHENTICATE \"ciao\"\n");
+      this.write("AUTHENTICATE \"" + this.password + "\"\n");
     });
 
     this.controlSocket.closed.then(() => {
