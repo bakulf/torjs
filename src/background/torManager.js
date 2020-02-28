@@ -36,13 +36,14 @@ export class TorManager extends Component {
 
   scheduleControlChannel() {
     log("Scheduling control channel");
-    setTimeout(() => this.controlChannel(), 1000);
+    setTimeout(() => this.controlChannel(), 100);
   }
 
   async controlChannel() {
     log("Control channel");
     const controller = new Controller({
       bootstrap: state => this.bootstrapState(state),
+      failure: () => this.scheduleControlChannel(),
     });
 
     try {

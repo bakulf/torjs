@@ -1,3 +1,7 @@
+import {Logger} from "./logger.js";
+
+const log = Logger.logger("Controller");
+
 const CONNECTING = 0;
 const CONNECTED = 1;
 const AUTHENTICATED = 2;
@@ -8,6 +12,8 @@ const CLOSED = 99;
 
 export class Controller {
   constructor(callbacks) {
+    log("constructor");
+
     this.state = CONNECTING;
     this.bootstrapState = 0;
 
@@ -18,6 +24,8 @@ export class Controller {
   }
 
   async init(port) {
+    log("init");
+
     this.controlSocket = await browser.experiments.TCPSocket.connect({
       host: "127.0.0.1", port,
     });
@@ -39,9 +47,15 @@ export class Controller {
     }
   }
 
-  write(str) {
+  async write(str) {
+    log("write: " + str);
+
     const buffer = this.encoder.encode(str).buffer;
-    this.controlSocket.write(buffer);
+    try {
+      await this.controlSocket.write(buffer);
+    } catch(e) {
+      this.callbacks.failure();
+    }
   }
 
   parsePayload(payload) {
@@ -57,6 +71,8 @@ export class Controller {
   }
 
   dataAvailable(data) {
+    log("data received");
+
     const payload = this.decoder.decode(data);
     const messages = this.parsePayload(payload);
     if (messages.length === 0) {

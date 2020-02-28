@@ -85,6 +85,9 @@ class Main {
       case "bootstrap":
         return this.ui.portUpdate();
 
+      case "setMode":
+        return this.setMode(data.mode);
+
       default:
         console.error("Invalid event: " + type);
         throw new Error("Invalid event: " + type);

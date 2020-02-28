@@ -14,15 +14,15 @@ export class UI extends Component {
 
   async init() {
     log("init");
-
     browser.runtime.onConnect.addListener(port => this.portConnected(port));
   }
 
   portConnected(port) {
+    log("port connected");
     this.currentPort = port;
 
     port.onMessage.addListener(async msg => {
-      this.setMode(msg.mode);
+      this.sendMessage("setMode", { mode: msg.mode });
     });
 
     this.portUpdate();
