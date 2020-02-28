@@ -1,7 +1,7 @@
 import {Component} from "./component.js";
 import {Logger} from "./logger.js";
 
-import {SocketServer, TcpSocketWrapper} from "./tcp.js";
+import {SocketServer, SocketServerManager, TcpSocketWrapper} from "./tcp.js";
 import {Controller} from "./controller.js";
 
 const log = Logger.logger("TorManager");
@@ -16,6 +16,22 @@ export class TorManager extends Component {
   async init() {
     log("init");
 
+    SocketServerManager.init({
+      onListenFailure: () => this.startTor(),
+    });
+
+    this.startTor();
+  }
+
+  startTor() {
+    log("start tor");
+
+    if (this.instance) {
+      delete this.instance;
+    }
+
+    GlobalState.generateTorPorts();
+
     this.instance = Module({
       CustomSocketServer: SocketServer,
       CustomSocket: TcpSocketWrapper,
@@ -29,6 +45,7 @@ export class TorManager extends Component {
         "GeoIPFile", "/geoip",
         "GeoIPv6File", "/geoip6",
       ],
+      print: what => log("TOR: " + what),
     });
 
     this.scheduleControlChannel();

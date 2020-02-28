@@ -1,3 +1,7 @@
+import {Logger} from "./logger.js";
+
+const log = Logger.logger("TCP");
+
 function wrapSocket(socketPromise) {
   let closed = false;
   let _socket = null
@@ -157,8 +161,22 @@ class TcpSocketWrapper extends TcpSocket {
   }
 }
 
+const SocketServerManager = {
+  callbacks: null,
+
+  init(callbacks) {
+    this.callbacks = callbacks;
+  },
+
+  listenFailure() {
+    this.callbacks.onListenFailure();
+  },
+};
+
 class SocketServer {
   constructor(config) {
+    log("SocketServer contructor");
+
     if (!config || config.host !== '127.0.0.1' || typeof config.port !== 'number') {
       throw new Error(`Wrong listening server ${(config && config.port)}`);
     }
@@ -176,7 +194,13 @@ class SocketServer {
     }
 
     const startServer = async () => {
-      this.server = await browser.experiments.TCPSocket.listen({ port: config.port });
+      try {
+        this.server = await browser.experiments.TCPSocket.listen({ port: config.port });
+      } catch (e) {
+        SocketServerManager.listenFailure();
+        return;
+      }
+
       for await (const client of this.server.connections) {
         onconnect(client)
       }
@@ -202,5 +226,6 @@ class SocketServer {
 
 export {
   SocketServer,
+  SocketServerManager,
   TcpSocketWrapper,
 }

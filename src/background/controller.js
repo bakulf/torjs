@@ -73,49 +73,55 @@ export class Controller {
   dataAvailable(data) {
     log("data received");
 
+    if (!this.dataAvailableInternal(data)) {
+      this.callbacks.failure();
+    }
+  }
+
+  dataAvailableInternal(data) {
     const payload = this.decoder.decode(data);
     const messages = this.parsePayload(payload);
     if (messages.length === 0) {
-      return;
+      return true;
     }
 
     if (this.state === CONNECTED) {
       if (messages[0].code !== 250) {
-        return; // TODO
+        return false;
       }
 
       this.state = AUTHENTICATED;
       this.write("TAKEOWNERSHIP\n");
-      return;
+      return true;
     }
 
     if (this.state === AUTHENTICATED) {
       if (messages[0].code !== 250) {
-        return; // TODO
+        return false;
       }
 
       this.state = OWNERSHIP;
       this.write("RESETCONF __OwningControllerProcess\n");
-      return;
+      return true;
     }
 
     if (this.state === OWNERSHIP) {
       if (messages[0].code !== 250) {
-        return; // TODO
+        return false;
       }
 
       this.state = EVENTS;
       this.write("SETEVENTS STATUS_CLIENT NOTICE WARN ERR\n");
-      return;
+      return true;
     }
 
     if (this.state === EVENTS) {
       if (messages[0].code !== 250) {
-        return; // TODO
+        return false;
       }
 
       this.state = READY;
-      return;
+      return true;
     }
 
     if (this.state === READY) {
@@ -135,6 +141,8 @@ export class Controller {
         this.parseBootstrap(message.extra);
       });
     }
+
+    return true;
   }
 
   parseBootstrap(msg) {

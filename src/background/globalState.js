@@ -13,9 +13,15 @@ const GlobalState = {
     // Let's read the mode.
     const {mode} = await browser.storage.local.get("mode");
     this.mode = mode === undefined ? MODE_OFF : mode;
+  },
 
-    // TODO: what if port is used?
+  generateTorPorts() {
     this.port = 10000 + Math.floor(Math.random() * 50000);
     this.controlPort = 10000 + Math.floor(Math.random() * 50000);
-  }
+
+    // In the remote case this happens...
+    if (this.port == this.controlPort) {
+      this.generateTorPorts();
+    }
+  },
 };
