@@ -80,7 +80,6 @@ export class TorManager extends Component {
     this.instance = Module({
       CustomSocketServer: SocketServer,
       CustomSocket: TcpSocketWrapper,
-      logReadFiles: true, // TODO
       getPreloadedPackage: (file, size) => this.getPreloadedPackage(file, size),
       arguments: [
         "SocksPort",

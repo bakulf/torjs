@@ -26,9 +26,13 @@ export class Network extends Component {
       return null;
     }
 
-    // TODO: circuit isolation
+    // XXX: This can be improved.
+    const circuitId = requestInfo.cookieStoreId;
+
     return {
       type: "socks",
+      username: circuitId,
+      password: circuitId,
       host: "127.0.0.1",
       port: GlobalState.port,
       proxyDNS: true,
