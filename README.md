@@ -3,6 +3,7 @@
 A WebExtension that runs an *experimental* WebAssembly Tor client.
 
 This is a fork of: https://github.com/acatarineu/torjs-webext
+ceba.js folder is based on https://github.com/acatarineu/ceba.js
 
 ## Disclaimer
 
