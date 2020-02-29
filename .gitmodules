@@ -1,3 +1,9 @@
-[submodule "external/ceba.js"]
-	path = external/ceba.js
-	url = https://github.com/acatarineu/ceba.js.git
+[submodule "ceba.js/external/tor"]
+	path = ceba.js/external/tor
+	url = https://github.com/torproject/tor.git
+[submodule "ceba.js/external/libevent"]
+	path = ceba.js/external/libevent
+	url = https://github.com/libevent/libevent.git
+[submodule "ceba.js/external/zlib"]
+	path = ceba.js/external/zlib
+	url = https://github.com/madler/zlib.git

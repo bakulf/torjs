@@ -1,0 +1,76 @@
+From fa08fd4e57ea92eb8ed4c420b370e6b31c825742 Mon Sep 17 00:00:00 2001
+From: Alex Catarineu <alex@cliqz.com>
+Date: Fri, 19 Jan 2018 18:51:01 +0100
+Subject: [PATCH] emscripten main loop
+
+---
+ src/common/compat_libevent.c |  4 ++++
+ src/or/main.c                | 21 +++++++++++++++++++++
+ 2 files changed, 25 insertions(+)
+
+diff --git a/src/common/compat_libevent.c b/src/common/compat_libevent.c
+index e60eb148d..088a9dfd4 100644
+--- a/src/common/compat_libevent.c
++++ b/src/common/compat_libevent.c
+@@ -502,7 +502,11 @@ tor_libevent_free_all(void)
+ int
+ tor_libevent_run_event_loop(struct event_base *base, int once)
+ {
++  #ifdef __EMSCRIPTEN__
++  const int flags = EVLOOP_ONCE | EVLOOP_NONBLOCK;
++  #else
+   const int flags = once ? EVLOOP_ONCE : 0;
++  #endif
+   return event_base_loop(base, flags);
+ }
+ 
+diff --git a/src/or/main.c b/src/or/main.c
+index a93fdc392..95e84fbeb 100644
+--- a/src/or/main.c
++++ b/src/or/main.c
+@@ -132,6 +132,11 @@
+ #include <systemd/sd-daemon.h>
+ #endif /* defined(HAVE_SYSTEMD) */
+ 
++#ifdef __EMSCRIPTEN__
++#include <emscripten.h>
++static void emscripten_main_loop(void);
++#endif
++
+ void evdns_shutdown(int);
+ 
+ #ifdef HAVE_RUST
+@@ -2957,7 +2962,12 @@ do_main_loop(void)
+   }
+ #endif
+ 
++  #ifdef __EMSCRIPTEN__
++  // TODO: make FPS configurable
++  emscripten_set_main_loop(emscripten_main_loop, 100, 1);
++  #else
+   return run_main_loop_until_done();
++  #endif
+ }
+ 
+ #ifndef _WIN32
+@@ -3052,6 +3062,17 @@ run_main_loop_once(void)
+   return 1;
+ }
+ 
++#ifdef __EMSCRIPTEN__
++static void
++emscripten_main_loop(void)
++{
++  int ret = run_main_loop_once();
++  if (ret != 1) {
++    // TODO: what should we do here?
++    emscripten_cancel_main_loop();
++  }
++}
++#endif
+ /** Run the run_main_loop_once() function until it declares itself done,
+  * and return its final return value.
+  *
+-- 
+2.17.1
+

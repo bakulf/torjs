@@ -1,7 +1,6 @@
 .PHONY:
 all: update install
-	make -C external/ceba.js
-	cp external/ceba.js/build/tor.js external/ceba.js/build/tor.data src/tor
+	make -C ceba.js
 
 .PHONY:
 clean:
