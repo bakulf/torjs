@@ -129,4 +129,12 @@ export class TorManager extends Component {
     GlobalState.state = state;
     this.sendMessage("bootstrap", {state});
   }
+
+  async getCircuit(circuit) {
+    if (!this.controller) {
+      return null;
+    }
+
+    return this.controller.getCircuit(circuit);
+  }
 }

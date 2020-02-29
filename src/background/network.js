@@ -27,7 +27,7 @@ export class Network extends Component {
     }
 
     // XXX: This can be improved.
-    const circuitId = requestInfo.cookieStoreId;
+    const circuitId = requestInfo.cookieStoreId || "default";
 
     return {
       type: "socks",

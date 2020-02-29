@@ -88,6 +88,9 @@ class Main {
       case "setMode":
         return this.setMode(data.mode);
 
+      case "getCircuit":
+        return this.torManager.getCircuit(data.circuit);
+
       default:
         console.error("Invalid event: " + type);
         throw new Error("Invalid event: " + type);

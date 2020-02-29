@@ -26,6 +26,8 @@ export class UI extends Component {
     });
 
     this.portUpdate();
+
+    this.getCurrentCircuit();
   }
 
   portUpdate() {
@@ -36,5 +38,16 @@ export class UI extends Component {
         state: GlobalState.state,
       });
     }
+  }
+
+  async getCurrentCircuit() {
+    const tabs = await browser.tabs.query({active: true, currentWindow: true});
+    if (tabs.length === 0) {
+      return;
+    }
+
+    const cookieStoreId = tabs[0].cookieStoreId || "default";
+    const circuitInfo = await this.sendMessage("getCircuit", { circuit: cookieStoreId });
+    console.log(circuitInfo);
   }
 }

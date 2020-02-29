@@ -22,6 +22,10 @@ export class Controller {
 
     this.encoder = new TextEncoder();
     this.decoder = new TextDecoder();
+
+    this.circuits = [];
+
+    this.pendingOps = [];
   }
 
   async init(port) {
@@ -41,11 +45,14 @@ export class Controller {
       this.state = CLOSED;
     });
 
-    while (this.controlSocket) {
-      await this.controlSocket.read().then(data => {
-        this.dataAvailable(data);
-      });
-    }
+    // Async read.
+    setTimeout(async () => {
+      while (this.controlSocket) {
+        await this.controlSocket.read().then(data => {
+          this.dataAvailable(data);
+        });
+      }
+    }, 0);
   }
 
   async write(str) {
@@ -81,6 +88,8 @@ export class Controller {
 
   dataAvailableInternal(data) {
     const payload = this.decoder.decode(data);
+    log("Payload: " + payload);
+
     const messages = this.parsePayload(payload);
     if (messages.length === 0) {
       return true;
@@ -112,7 +121,7 @@ export class Controller {
       }
 
       this.state = EVENTS;
-      this.write("SETEVENTS STATUS_CLIENT NOTICE WARN ERR\n");
+      this.write("SETEVENTS STATUS_CLIENT NOTICE WARN ERR STREAM\n");
       return true;
     }
 
@@ -131,29 +140,33 @@ export class Controller {
           return;
         }
 
-        if (message.type !== "STATUS_CLIENT") {
+        if (message.type === "STREAM") {
+          this.processStream(message);
           return;
         }
 
-        if (!message.extra.startsWith("NOTICE BOOTSTRAP PROGRESS=")) {
+        if (message.type === "STATUS_CLIENT") {
+          this.processStatusClient(message);
           return;
         }
-
-        this.parseBootstrap(message.extra);
       });
     }
 
     return true;
   }
 
-  parseBootstrap(msg) {
+  processStatusClient(message) {
+    if (!message.extra.startsWith("NOTICE BOOTSTRAP PROGRESS=")) {
+      return;
+    }
+
     const parts = [];
 
     let part = "";
     let quote = false;
 
-    for (let i = 0; i < msg.length; ++i) {
-      const c = msg.charAt(i);
+    for (let i = 0; i < message.extra.length; ++i) {
+      const c = message.extra.charAt(i);
       if (c == ' ' && !quote) {
         parts.push(part);
         part = "";
@@ -178,5 +191,49 @@ export class Controller {
 
     this.bootstrapState = progress;
     this.callbacks.bootstrap(progress);
+
+    // Process the pending ops.
+    if (this.bootstrapState === 100) {
+      this.pendingOps.forEach(r => r());
+      this.pendingOps = [];
+    }
+  }
+
+  processStream(message) {
+    const parts = message.extra.split(" ");
+    const streamId = parts[0]
+    const status = parts[1];
+    const circuitId = parts[2];
+    const target = parts[3];
+
+    log(`Stream: id(${streamId}) - status(${status}) - circuitId(${circuitId}) - target(${target})`);
+
+    if (status === "SENTCONNECT" &&
+        !this.circuits.find(circuit => circuit.id === circuitId)) {
+      this.addCircuit(circuitId);
+    }
+  }
+
+  addCircuit(circuitId) {
+    log(`New circuit: ${circuitId}`);
+
+    this.circuits.push({
+      id: circuitId,
+    });
+
+    this.write("GETINFO circuit-status");
+    // TODO: parse the multi-line circuit message
+  }
+
+  async getCircuit(circuit) {
+    log(`get circuit ${circuit}`);
+
+    // We are not ready yet. Let's wait.
+    if (this.bootstrapState < 100) {
+      await new Promise(resolve => this.pendingOps.push(resolve));
+    }
+
+    // TODO
+    return 42;
   }
 };
