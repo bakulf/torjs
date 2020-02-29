@@ -40,7 +40,7 @@ class Main {
     // Inititialization completed. Let's process any pending event received in
     // the meantime.
     this.handlingEvent = false;
-    this.syncProcessPendingEvents();
+    this.processPendingEvents();
   }
 
   registerObserver(observer) {

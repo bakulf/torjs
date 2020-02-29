@@ -20,9 +20,23 @@ export class TorManager extends Component {
       onListenFailure: () => this.startTor(),
     });
 
+    await this.preFetchTorData();
+
     await this.generatePassword();
 
     this.startTor();
+  }
+
+  async preFetchTorData() {
+    const url = browser.runtime.getURL("tor/tor.data");
+    log(`Resource URL: ${url}`);
+
+    try {
+      const resp = await fetch(url);
+      this.torData = await resp.arrayBuffer();
+    } catch (e) {
+      log("Error fetching an internal resource");
+    }
   }
 
   async generatePassword() {
@@ -43,6 +57,7 @@ export class TorManager extends Component {
           "--hash-password",
           this.password,
         ],
+        getPreloadedPackage: (file, size) => this.getPreloadedPackage(file, size),
         print: what => {
           if (what.startsWith("16:")) {
             this.hashedPassword = what.trim();
@@ -66,6 +81,7 @@ export class TorManager extends Component {
       CustomSocketServer: SocketServer,
       CustomSocket: TcpSocketWrapper,
       logReadFiles: true, // TODO
+      getPreloadedPackage: (file, size) => this.getPreloadedPackage(file, size),
       arguments: [
         "SocksPort",
         "127.0.0.1:" + GlobalState.port.toString(),
@@ -79,6 +95,14 @@ export class TorManager extends Component {
     });
 
     this.scheduleControlChannel();
+  }
+
+  getPreloadedPackage(file, size) {
+    if (file != "tor.data") {
+      throw new Error(`Unknown preloaded file ${file}`);
+    }
+
+    return this.torData;
   }
 
   scheduleControlChannel() {

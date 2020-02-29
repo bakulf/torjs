@@ -1,4 +1,5 @@
 node_modules
 web-ext-artifacts
 src/tor/tor.js
+src/tor/tor.data
 dist
