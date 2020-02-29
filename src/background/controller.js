@@ -2,20 +2,16 @@ import {Logger} from "./logger.js";
 
 const log = Logger.logger("Controller");
 
-const CONNECTING = 0;
-const CONNECTED = 1;
-const AUTHENTICATED = 2;
-const OWNERSHIP = 3;
-const EVENTS = 4;
-const READY = 5;
-const CLOSED = 99;
+const HANDLER_COMPLETED = "completed";
+const HANDLER_FAILURE = "failure";
+const HANDLER_IGNORED = "ignored";
+const HANDLER_CONTINUE = "continue";
 
 export class Controller {
   constructor(password, callbacks) {
     log("constructor");
 
     this.password = password;
-    this.state = CONNECTING;
     this.bootstrapState = 0;
 
     this.callbacks = callbacks;
@@ -26,6 +22,10 @@ export class Controller {
     this.circuits = [];
 
     this.pendingOps = [];
+
+    // What is in charge to control the protocol flow.
+    this.handler = null;
+    this.nextHandlers = [];
   }
 
   async init(port) {
@@ -35,14 +35,10 @@ export class Controller {
       host: "127.0.0.1", port,
     });
 
-    this.controlSocket.opened.then(() => {
-      this.state = CONNECTED;
-      this.write("AUTHENTICATE \"" + this.password + "\"\n");
-    });
+    this.controlSocket.opened.then(() => this.protocolFlow());
 
     this.controlSocket.closed.then(() => {
       this.controlSocket = null;
-      this.state = CLOSED;
     });
 
     // Async read.
@@ -53,6 +49,73 @@ export class Controller {
         });
       }
     }, 0);
+  }
+
+  async protocolFlow() {
+    log("Authentication...");
+    await this.addHandler(
+      {
+        write: "AUTHENTICATE \"" + this.password + "\"\n",
+        process: line => {
+          const message = this.parseProtocolLine(line);
+          if (message.code == 250) {
+            return HANDLER_COMPLETED;
+          }
+
+          if (message.code == 515) {
+            return HANDLER_FAILURE;
+          }
+
+          return HANDLER_IGNORED;
+        }
+      }
+    );
+
+    log("Take ownership...");
+    await this.addHandler(
+      {
+        write: "TAKEOWNERSHIP\n",
+        process: line => {
+          const message = this.parseProtocolLine(line);
+          return message.code === 250 ? HANDLER_COMPLETED : HANDLER_IGNORED;
+        }
+      }
+    );
+
+    log("Owning control process");
+    await this.addHandler(
+      {
+        write: "RESETCONF __OwningControllerProcess\n",
+        process: line => {
+          const message = this.parseProtocolLine(line);
+          return message.code === 250 ? HANDLER_COMPLETED : HANDLER_IGNORED;
+        }
+      }
+    );
+
+    log("Events");
+    await this.addHandler(
+      {
+        write: "SETEVENTS STATUS_CLIENT NOTICE WARN ERR STREAM\n",
+        process: line => {
+          const message = this.parseProtocolLine(line);
+          return message.code === 250 ? HANDLER_COMPLETED : HANDLER_IGNORED;
+        }
+      }
+    );
+
+    log("Completed!");
+  }
+
+  async addHandler(handler) {
+    if (this.handler) {
+      await new Promise(resolve => this.nextHandlers.push(resolve));
+    }
+
+    this.handler = handler;
+    this.write(this.handler.write);
+
+    await new Promise(resolve => this.handler.resolve = resolve);
   }
 
   async write(str) {
@@ -66,93 +129,75 @@ export class Controller {
     }
   }
 
-  parsePayload(payload) {
-    const lines = payload.trim().split("\n");
-    return lines.map(line => {
-      const parts = line.trim().split(" ");
-      return {
-        code: parseInt(parts[0]),
-        type: parts[1],
-        extra: parts.slice(2).join(" "),
-      };
-    });
+  parseProtocolLine(line) {
+    const parts = line.split(" ");
+    return {
+      code: parseInt(parts[0]),
+      type: parts[1],
+      extra: parts.slice(2).join(" "),
+    };
   }
 
   dataAvailable(data) {
     log("data received");
 
-    if (!this.dataAvailableInternal(data)) {
-      this.callbacks.failure();
-    }
-  }
-
-  dataAvailableInternal(data) {
     const payload = this.decoder.decode(data);
     log("Payload: " + payload);
 
-    const messages = this.parsePayload(payload);
-    if (messages.length === 0) {
-      return true;
-    }
+    const lines = payload.trim().split("\n");
+    lines.forEach(line => {
+      line = line.trim();
 
-    if (this.state === CONNECTED) {
-      if (messages[0].code !== 250) {
-        return false;
+      if (!this.handler) {
+        this.unknownLine(line);
+        return;
       }
 
-      this.state = AUTHENTICATED;
-      this.write("TAKEOWNERSHIP\n");
-      return true;
-    }
+      const op = this.handler.process(line);
+      switch (op) {
+        case HANDLER_COMPLETED:
+          this.handler.resolve();
+          this.nextHandler();
+          break;
 
-    if (this.state === AUTHENTICATED) {
-      if (messages[0].code !== 250) {
-        return false;
+        case HANDLER_FAILURE:
+          this.callbacks.failure();
+          break;
+
+        case HANDLER_IGNORED:
+          this.unknownLine(line);
+          break;
+
+        case HANDLER_CONTINUE:
+          break;
       }
+    });
+  }
 
-      this.state = OWNERSHIP;
-      this.write("RESETCONF __OwningControllerProcess\n");
-      return true;
+  nextHandler() {
+    this.handler = null;
+    if (this.nextHandlers.length) {
+      this.nextHandlers.shift()();
+    }
+  }
+
+  unknownLine(line) {
+    log(`Unknown line handler: ${line}`);
+
+    const message = this.parseProtocolLine(line);
+    if (message.code !== 650) {
+      return;
     }
 
-    if (this.state === OWNERSHIP) {
-      if (messages[0].code !== 250) {
-        return false;
-      }
-
-      this.state = EVENTS;
-      this.write("SETEVENTS STATUS_CLIENT NOTICE WARN ERR STREAM\n");
-      return true;
+    if (message.type === "STREAM") {
+      this.processStream(message);
+      return;
     }
 
-    if (this.state === EVENTS) {
-      if (messages[0].code !== 250) {
-        return false;
-      }
-
-      this.state = READY;
-      return true;
+    if (message.type === "STATUS_CLIENT") {
+      this.processStatusClient(message);
+      return;
     }
-
-    if (this.state === READY) {
-      messages.forEach(message => {
-        if (message.code !== 650) {
-          return;
-        }
-
-        if (message.type === "STREAM") {
-          this.processStream(message);
-          return;
-        }
-
-        if (message.type === "STATUS_CLIENT") {
-          this.processStatusClient(message);
-          return;
-        }
-      });
-    }
-
-    return true;
   }
 
   processStatusClient(message) {
@@ -214,15 +259,103 @@ export class Controller {
     }
   }
 
-  addCircuit(circuitId) {
-    log(`New circuit: ${circuitId}`);
+  async addCircuit(circuitId) {
+    log(`Add circuit ${circuitId}`);
 
-    this.circuits.push({
-      id: circuitId,
+    const CIRCUIT_PRE = "pre"; // before 250+circuit-status=...
+    const CIRCUIT_IN = "in"; // collecting lines.
+    const CIRCUIT_POST = "post"; // waiting for a 250.
+
+    let state = CIRCUIT_PRE;
+    const circuits = [];
+
+    await this.addHandler(
+      {
+        write: "GETINFO circuit-status\n",
+        process: line => {
+          if (state === CIRCUIT_PRE) {
+            if (line.startsWith("250+circuit-status=")) {
+              state = CIRCUIT_IN;
+              return HANDLER_CONTINUE;
+            }
+
+            if (line.startsWith("250-circuit-status=")) {
+              circuits.push(this.parseCircuitLine(line.substring(19)));
+              state = CIRCUIT_POST;
+              return HANDLER_CONTINUE;
+            }
+
+            return HANDLER_IGNORED;
+          }
+
+          if (state === CIRCUIT_IN) {
+            if (line === ".") {
+              state = CIRCUIT_POST;
+            } else {
+              circuits.push(this.parseCircuitLine(line));
+            }
+            return HANDLER_CONTINUE;
+          }
+
+          if (state == CIRCUIT_POST) {
+            const message = this.parseProtocolLine(line);
+            return message.code === 250 ? HANDLER_COMPLETED : HANDLER_IGNORED;
+          }
+        }
+      }
+    );
+
+    log("Circuit collected");
+
+    const oldCircuits = this.circuits;
+    this.circuits = [];
+
+    circuits.forEach(circuit => {
+      if (circuit.state === "BUILT") {
+        const c = oldCircuits.find(c => c.id === circuit.id);
+        if (c) {
+          log("Known circuit found!");
+          this.circuits.push(c);
+        } else {
+          log("new circuit");
+          this.circuits.push({
+            id: circuit.id,
+            circuitId: circuit.circuitId,
+            uniqueId: circuit.uniqueId,
+            ip: null,
+          });
+        }
+      }
     });
 
-    this.write("GETINFO circuit-status");
-    // TODO: parse the multi-line circuit message
+    log("Circuits:");
+    this.circuits.forEach(circuit => {
+      log(` - ${JSON.stringify(circuit)}`);
+
+      if (circuit.ip === null) {
+        // TODO... fetch the circuit IP!
+      }
+    });
+  }
+
+  parseCircuitLine(line) {
+    log(`Parsing circuit line: ${line}`);
+
+    const parts = line.split(" ");
+    const circuit = {
+      id: parts[0],
+      state: parts[1],
+      circuitId: parts[2],
+      uniqueId: null,
+    }
+
+    const username = parts.find(p => p.startsWith("SOCKS_USERNAME="));
+    if (username) {
+      const p = username.split("=");
+      circuit.uniqueId = p[1].substring(1, p[1].length -1);
+    }
+
+    return circuit;
   }
 
   async getCircuit(circuit) {
