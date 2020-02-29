@@ -7,3 +7,6 @@
 [submodule "ceba.js/external/zlib"]
 	path = ceba.js/external/zlib
 	url = https://github.com/madler/zlib.git
+[submodule "ceba.js/external/libressl"]
+	path = ceba.js/external/libressl
+	url = https://github.com/libressl-portable/portable.git
