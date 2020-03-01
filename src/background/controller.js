@@ -254,13 +254,14 @@ export class Controller {
     log(`Stream: id(${streamId}) - status(${status}) - circuitId(${circuitId}) - target(${target})`);
 
     if (status === "SENTCONNECT" &&
+        this.bootstrapState === 100 &&
         !this.circuits.find(circuit => circuit.id === circuitId)) {
-      this.addCircuit(circuitId);
+      this.refreshCircuits();
     }
   }
 
-  async addCircuit(circuitId) {
-    log(`Add circuit ${circuitId}`);
+  async refreshCircuits() {
+    log("Refresh circuits");
 
     const CIRCUIT_PRE = "pre"; // before 250+circuit-status=...
     const CIRCUIT_IN = "in"; // collecting lines.
