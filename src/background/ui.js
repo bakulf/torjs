@@ -48,6 +48,6 @@ export class UI extends Component {
 
     const cookieStoreId = tabs[0].cookieStoreId || "default";
     const circuitInfo = await this.sendMessage("getCircuit", { circuit: cookieStoreId });
-    console.log(circuitInfo);
+    this.currentPort.postMessage({circuitInfo});
   }
 }

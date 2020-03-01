@@ -322,8 +322,12 @@ export class Controller {
             id: circuit.id,
             circuitId: circuit.circuitId,
             uniqueId: circuit.uniqueId,
-            ip: null,
+            ips: [],
           });
+
+          if (circuit.uniqueId) {
+            this.processCircuit(circuit.circuitId);
+          }
         }
       }
     });
@@ -331,11 +335,154 @@ export class Controller {
     log("Circuits:");
     this.circuits.forEach(circuit => {
       log(` - ${JSON.stringify(circuit)}`);
-
-      if (circuit.ip === null) {
-        // TODO... fetch the circuit IP!
-      }
     });
+  }
+
+  async processCircuit(circuitId) {
+    log(`Processing circuit ${circuitId}`);
+
+    const ips = [];
+
+    const parts = circuitId.split(",");
+    for (let i = 0; i < parts.length; ++i) {
+      let id = parts[i];
+      if (id.startsWith("$")) {
+        id = id.substring(1);
+      }
+      if (id.includes("~")) {
+        id = id.substring(0, id.indexOf("~"));
+      }
+
+      log(`Request data for node ${id}`);
+
+      const CIRCUIT_PRE = "pre"; // before 250+circuit-status=...
+      const CIRCUIT_IN = "in"; // collecting lines.
+      const CIRCUIT_POST = "post"; // waiting for a 250.
+
+      let state = CIRCUIT_PRE;
+      const lines = [];
+
+      await this.addHandler(
+        {
+          write: `GETINFO ns/id/${id}\n`,
+          process: line => {
+            if (state === CIRCUIT_PRE) {
+              if (line.startsWith(`250+ns/id/${id}=`)) {
+                state = CIRCUIT_IN;
+                return HANDLER_CONTINUE;
+              }
+
+              return HANDLER_IGNORED;
+            }
+
+            if (state === CIRCUIT_IN) {
+              if (line === ".") {
+                state = CIRCUIT_POST;
+              } else {
+                lines.push(line);
+              }
+              return HANDLER_CONTINUE;
+            }
+
+            if (state == CIRCUIT_POST) {
+              const message = this.parseProtocolLine(line);
+              return message.code === 250 ? HANDLER_COMPLETED : HANDLER_IGNORED;
+            }
+          }
+        });
+
+      const data = {};
+
+      lines.forEach(line => {
+        const parts = line.trim().split(" ");
+        switch (parts[0]) {
+          case "r":
+            data.ip = parts[6];
+            break;
+
+          case "a":
+            data.ip6 = parts[1];
+            break;
+
+          default:
+            // we don't care about the rest.
+            break;
+        }
+      });
+
+      if (!data.ip && !data.ip6) {
+        log("No IP found!");
+        continue;
+      }
+
+      if (data.ip) {
+        log(`Requesting country name for ip ${data.ip}`);
+
+        state = CIRCUIT_PRE;
+
+        await this.addHandler(
+          {
+            write: `GETINFO ip-to-country/${data.ip}\n`,
+            process: line => {
+              if (state === CIRCUIT_PRE) {
+                if (line.startsWith(`250-ip-to-country/${data.ip}=`)) {
+                  data.country = line.split("=")[1];
+                  state = CIRCUIT_POST;
+                  return HANDLER_CONTINUE;
+                }
+
+                return HANDLER_IGNORED;
+              }
+
+              if (state == CIRCUIT_POST) {
+                const message = this.parseProtocolLine(line);
+                return message.code === 250 ? HANDLER_COMPLETED : HANDLER_IGNORED;
+              }
+            }
+          }
+        );
+      }
+
+      if (data.ip6) {
+        log(`Requesting country name for ipv6 ${data.ip6}`);
+
+        state = CIRCUIT_PRE;
+
+        await this.addHandler(
+          {
+            write: `GETINFO ip-to-country/${data.ip6}\n`,
+            process: line => {
+              if (state === CIRCUIT_PRE) {
+                if (line.startsWith(`250-ip-to-country/${data.ip6}=`)) {
+                  data.country = line.split("=")[1];
+                  state = CIRCUIT_POST;
+                  return HANDLER_CONTINUE;
+                }
+
+                return HANDLER_IGNORED;
+              }
+
+              if (state == CIRCUIT_POST) {
+                const message = this.parseProtocolLine(line);
+                return message.code === 250 ? HANDLER_COMPLETED : HANDLER_IGNORED;
+              }
+            }
+          }
+        );
+      }
+
+      log(`Country for ${data.ip} or ${data.ip6} is ${data.country}`);
+      ips.push(data);
+    }
+
+    const circuit = this.circuits.find(circuit => circuit.circuitId === circuitId);
+    if (!circuit) {
+      return;
+    }
+
+    circuit.ips = ips;
+
+    log(`Country: ${JSON.stringify(circuit)}`);
   }
 
   parseCircuitLine(line) {
@@ -358,15 +505,19 @@ export class Controller {
     return circuit;
   }
 
-  async getCircuit(circuit) {
-    log(`get circuit ${circuit}`);
+  async getCircuit(uniqueId) {
+    log(`get circuit ${uniqueId}`);
 
     // We are not ready yet. Let's wait.
     if (this.bootstrapState < 100) {
       await new Promise(resolve => this.pendingOps.push(resolve));
     }
 
-    // TODO
-    return 42;
+    const circuit = this.circuits.find(circuit => circuit.uniqueId === uniqueId);
+    if (!circuit) {
+      return null;
+    }
+
+    return circuit.ips;
   }
 };
