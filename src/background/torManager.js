@@ -11,6 +11,8 @@ export class TorManager extends Component {
     log("constructor");
 
     super(receiver);
+
+    this.torLog = [];
   }
 
   async init() {
@@ -90,10 +92,15 @@ export class TorManager extends Component {
         "GeoIPFile", "/geoip",
         "GeoIPv6File", "/geoip6",
       ],
-      print: what => log("TOR: " + what),
+      print: what => this.printCallback(what),
     });
 
     this.scheduleControlChannel();
+  }
+
+  printCallback(what) {
+    log("TOR: " + what),
+    this.torLog.push(what);
   }
 
   getPreloadedPackage(file, size) {
@@ -137,5 +144,9 @@ export class TorManager extends Component {
     }
 
     return this.controller.getCircuit(circuit);
+  }
+
+  getTorLog() {
+    return { torLog: this.torLog };
   }
 }

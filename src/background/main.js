@@ -94,6 +94,9 @@ class Main {
       case "circuitReady":
         return this.ui.circuitReady(data);
 
+      case "torLog":
+        return this.torManager.getTorLog();
+
       default:
         console.error("Invalid event: " + type);
         throw new Error("Invalid event: " + type);

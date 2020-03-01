@@ -19,6 +19,14 @@ export class UI extends Component {
 
   portConnected(port) {
     log("port connected");
+
+    if (port.name === "torLog") {
+      this.sendMessage("torLog").then(torLog => {
+        port.postMessage(torLog);
+      });
+      return;
+    }
+
     this.currentPort = port;
 
     port.onMessage.addListener(async msg => {

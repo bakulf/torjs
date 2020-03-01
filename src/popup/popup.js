@@ -3,6 +3,12 @@ let port = browser.runtime.connect({name: "panel"});
 let mode = document.getElementById("mode");
 mode.onchange = () => port.postMessage({mode: mode.value});
 
+document.getElementById("torLog").onclick = () => {
+  const url = browser.runtime.getURL("pages/log.html");
+  browser.tabs.create({ url });
+  window.close();
+}
+
 port.onMessage.addListener(msg => {
   if (msg.state) {
     document.getElementById("state").textContent = msg.state + "%";
