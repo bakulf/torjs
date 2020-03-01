@@ -9,13 +9,13 @@ port.onMessage.addListener(msg => {
     mode.value = msg.mode;
   }
 
-  if (msg.circuitInfo) {
-    console.log(msg.circuitInfo);
+  if (msg.circuit) {
+    console.log(msg.circuit.ips);
 
     const ul = document.getElementById("circuit");
     while (ul.firstChild) ul.firstChild.remove();
 
-    msg.circuitInfo.forEach(node => {
+    msg.circuit.ips.forEach(node => {
       const li = document.createElement("li");
       li.textContent = `IPv4: ${node.ip} - IPv6 ${node.ip6} - Country: ${node.country}`;
       ul.appendChild(li);

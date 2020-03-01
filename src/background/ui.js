@@ -47,7 +47,20 @@ export class UI extends Component {
     }
 
     const cookieStoreId = tabs[0].cookieStoreId || "default";
-    const circuitInfo = await this.sendMessage("getCircuit", { circuit: cookieStoreId });
-    this.currentPort.postMessage({circuitInfo});
+    this.sendMessage("getCircuit", { circuit: cookieStoreId });
+  }
+
+  async circuitReady(circuit) {
+    log(`Circuit ready: ${JSON.stringify(circuit)}`);
+
+    const tabs = await browser.tabs.query({active: true, currentWindow: true});
+    if (tabs.length === 0) {
+      return;
+    }
+
+    const cookieStoreId = tabs[0].cookieStoreId || "default";
+    if (circuit.uniqueId === cookieStoreId) {
+      this.currentPort.postMessage({circuit});
+    }
   }
 }

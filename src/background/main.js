@@ -91,6 +91,9 @@ class Main {
       case "getCircuit":
         return this.torManager.getCircuit(data.circuit);
 
+      case "circuitReady":
+        return this.ui.circuitReady(data);
+
       default:
         console.error("Invalid event: " + type);
         throw new Error("Invalid event: " + type);

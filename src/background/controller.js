@@ -431,6 +431,10 @@ export class Controller {
                   return HANDLER_CONTINUE;
                 }
 
+                if (line.startsWith("551 ")) {
+                  return HANDLER_COMPLETED;
+                }
+
                 return HANDLER_IGNORED;
               }
 
@@ -445,18 +449,23 @@ export class Controller {
 
       if (data.ip6) {
         log(`Requesting country name for ipv6 ${data.ip6}`);
+        const ip = data.ip6.split("]")[0].substring(1);
 
         state = CIRCUIT_PRE;
 
         await this.addHandler(
           {
-            write: `GETINFO ip-to-country/${data.ip6}\n`,
+            write: `GETINFO ip-to-country/${ip}\n`,
             process: line => {
               if (state === CIRCUIT_PRE) {
-                if (line.startsWith(`250-ip-to-country/${data.ip6}=`)) {
+                if (line.startsWith(`250-ip-to-country/${ip}=`)) {
                   data.country = line.split("=")[1];
                   state = CIRCUIT_POST;
                   return HANDLER_CONTINUE;
+                }
+
+                if (line.startsWith("551 ")) {
+                  return HANDLER_COMPLETED;
                 }
 
                 return HANDLER_IGNORED;
@@ -481,8 +490,7 @@ export class Controller {
     }
 
     circuit.ips = ips;
-
-    log(`Country: ${JSON.stringify(circuit)}`);
+    this.circuitReady(circuit);
   }
 
   parseCircuitLine(line) {
@@ -510,14 +518,17 @@ export class Controller {
 
     // We are not ready yet. Let's wait.
     if (this.bootstrapState < 100) {
-      await new Promise(resolve => this.pendingOps.push(resolve));
+      this.pendingOps.push(() => this.getCircuit(uniqueId));
+      return;
     }
 
     const circuit = this.circuits.find(circuit => circuit.uniqueId === uniqueId);
-    if (!circuit) {
-      return null;
+    if (circuit) {
+      this.circuitReady(circuit);
     }
+  }
 
-    return circuit.ips;
+  circuitReady(circuit) {
+    this.callbacks.circuitReady( {uniqueId: circuit.uniqueId, ips: circuit.ips});
   }
 };

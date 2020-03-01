@@ -114,6 +114,7 @@ export class TorManager extends Component {
     const controller = new Controller(this.password, {
       bootstrap: state => this.bootstrapState(state),
       failure: () => this.scheduleControlChannel(),
+      circuitReady: data => this.sendMessage("circuitReady", data),
     });
 
     try {
