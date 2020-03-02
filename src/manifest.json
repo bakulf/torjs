@@ -13,6 +13,8 @@
   },
 
   "permissions": [
+    "captivePortal",
+    "privacy",
     "proxy",
     "storage",
     "<all_urls>"
