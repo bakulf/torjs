@@ -96,7 +96,7 @@ export class Controller {
     log("Events");
     await this.addHandler(
       {
-        write: "SETEVENTS STATUS_CLIENT NOTICE WARN ERR STREAM\n",
+        write: "SETEVENTS STATUS_CLIENT NOTICE WARN ERR\n",
         process: line => {
           const message = this.parseProtocolLine(line);
           return message.code === 250 ? HANDLER_COMPLETED : HANDLER_IGNORED;
@@ -241,6 +241,17 @@ export class Controller {
     if (this.bootstrapState === 100) {
       this.pendingOps.forEach(r => r());
       this.pendingOps = [];
+
+      log("Activate all the events");
+      this.addHandler(
+        {
+          write: "SETEVENTS STATUS_CLIENT NOTICE WARN ERR STREAM\n",
+          process: line => {
+            const message = this.parseProtocolLine(line);
+            return message.code === 250 ? HANDLER_COMPLETED : HANDLER_IGNORED;
+          }
+        }
+      );
     }
   }
 

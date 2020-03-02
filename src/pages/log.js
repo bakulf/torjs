@@ -3,7 +3,7 @@ const pre = document.getElementById("torLog");
 
 port.onMessage.addListener(msg => {
   if (msg.torLog) {
-    pre.textContent = msg.torLog.join("\n");
+    pre.textContent = msg.torLog.join("\n") + "\n";
     return;
   }
 

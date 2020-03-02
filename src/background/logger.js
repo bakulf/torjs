@@ -11,6 +11,15 @@ export class Logger extends Component {
     this.debuggingMode = false;
     this.logMessages = [];
 
+    this.filteredCategories = [
+      //"Controller",
+      //"Main",
+      //"Network",
+      //"TCP",
+      //"TorManager",
+      //"UI",
+    ];
+
     self = this;
   }
 
@@ -47,7 +56,7 @@ export class Logger extends Component {
 
     const m = `*** SPB *** [${now}] [${category}] - ${msg} ${r}`;
 
-    if (this.debuggingMode) {
+    if (this.debuggingMode && !this.filteredCategories.includes(category)) {
       console.log(m);
     }
 
