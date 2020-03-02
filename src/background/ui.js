@@ -73,6 +73,8 @@ export class UI extends Component {
     }
 
     const cookieStoreId = tabs[0].cookieStoreId || "default";
+    log(`Circuit request for ${cookieStoreId}`);
+
     this.sendMessage("getCircuit", { circuit: cookieStoreId });
   }
 
