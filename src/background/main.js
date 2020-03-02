@@ -97,6 +97,9 @@ class Main {
       case "torLog":
         return this.torManager.getTorLog();
 
+      case "newTorLog":
+        return this.ui.newTorLog(data);
+
       default:
         console.error("Invalid event: " + type);
         throw new Error("Invalid event: " + type);

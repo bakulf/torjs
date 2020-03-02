@@ -101,6 +101,7 @@ export class TorManager extends Component {
   printCallback(what) {
     log("TOR: " + what),
     this.torLog.push(what);
+    this.sendMessage("newTorLog", what);
   }
 
   getPreloadedPackage(file, size) {

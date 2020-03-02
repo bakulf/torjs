@@ -1,5 +1,13 @@
-let port = browser.runtime.connect({name: "torLog"});
+const port = browser.runtime.connect({name: "torLog"});
+const pre = document.getElementById("torLog");
 
 port.onMessage.addListener(msg => {
-  document.getElementById("torLog").textContent = msg.torLog.join("\n");
+  if (msg.torLog) {
+    pre.textContent = msg.torLog.join("\n");
+    return;
+  }
+
+  if (msg.newTorLog) {
+    pre.textContent += msg.newTorLog + "\n";
+  }
 });

@@ -9,7 +9,8 @@ export class UI extends Component {
 
     super(receiver);
 
-    this.currentPort = null;
+    this.currentPanelPort = null;
+    this.currentLogPort = null;
   }
 
   async init() {
@@ -21,27 +22,44 @@ export class UI extends Component {
     log("port connected");
 
     if (port.name === "torLog") {
+      this.currentLogPort = port;
+
+      port.onDisconnect.addListener(_ => {
+        log("TorLog port disconnected");
+        this.currentLogPort = null;
+      });
+
       this.sendMessage("torLog").then(torLog => {
         port.postMessage(torLog);
       });
       return;
     }
 
-    this.currentPort = port;
+    if (port.name === "panel") {
+      this.currentPanelPort = port;
 
-    port.onMessage.addListener(async msg => {
-      this.sendMessage("setMode", { mode: msg.mode });
-    });
+      port.onDisconnect.addListener(_ => {
+        log("Panel port disconnected");
+        this.currentPanelPort = null;
+      });
 
-    this.portUpdate();
+      port.onMessage.addListener(async msg => {
+        this.sendMessage("setMode", { mode: msg.mode });
+      });
 
-    this.getCurrentCircuit();
+      this.portUpdate();
+
+      this.getCurrentCircuit();
+      return;
+    }
+
+    log(`Unknown port type: ${port.name}`);
   }
 
   portUpdate() {
     log("Port update!");
-    if (this.currentPort) {
-      this.currentPort.postMessage({
+    if (this.currentPanelPort) {
+      this.currentPanelPort.postMessage({
         mode: GlobalState.mode,
         state: GlobalState.state,
       });
@@ -68,7 +86,13 @@ export class UI extends Component {
 
     const cookieStoreId = tabs[0].cookieStoreId || "default";
     if (circuit.uniqueId === cookieStoreId) {
-      this.currentPort.postMessage({circuit});
+      this.currentPanelPort.postMessage({circuit});
+    }
+  }
+
+  newTorLog(what) {
+    if (this.currentLogPort) {
+      this.currentLogPort.postMessage({newTorLog: what});
     }
   }
 }
