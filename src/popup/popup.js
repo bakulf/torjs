@@ -11,7 +11,12 @@ document.getElementById("torLog").onclick = () => {
 
 port.onMessage.addListener(msg => {
   if (msg.state) {
-    document.getElementById("state").textContent = msg.state + "%";
+    if (msg.state < 0) {
+      document.getElementById("state").textContent = "OUT OF MEMORY";
+    } else {
+      document.getElementById("state").textContent = msg.state + "%";
+    }
+
     mode.value = msg.mode;
   }
 

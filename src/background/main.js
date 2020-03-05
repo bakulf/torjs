@@ -100,6 +100,9 @@ class Main {
       case "newTorLog":
         return this.ui.newTorLog(data);
 
+      case "oom":
+        return this.oom();
+
       default:
         console.error("Invalid event: " + type);
         throw new Error("Invalid event: " + type);
@@ -113,6 +116,10 @@ class Main {
     await browser.storage.local.set({mode});
 
     this.network.modeChanged();
+  }
+
+  oom() {
+    GlobalState.setState(STATE_OOM);
   }
 }
 

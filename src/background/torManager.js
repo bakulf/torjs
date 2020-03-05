@@ -53,20 +53,25 @@ export class TorManager extends Component {
     this.password = password.join("");
 
     // Let's use TOR to obtain an hashed password.
-    return new Promise(resolve => {
-      const instance = Module({
-        arguments: [
-          "--hash-password",
-          this.password,
-        ],
-        getPreloadedPackage: (file, size) => this.getPreloadedPackage(file, size),
-        print: what => {
-          if (what.startsWith("16:")) {
-            this.hashedPassword = what.trim();
-            resolve();
+    return new Promise((resolve, reject) => {
+      try {
+        const instance = Module({
+          arguments: [
+            "--hash-password",
+            this.password,
+          ],
+          getPreloadedPackage: (file, size) => this.getPreloadedPackage(file, size),
+          print: what => {
+            if (what.startsWith("16:")) {
+              this.hashedPassword = what.trim();
+              resolve();
+            }
           }
-        }
-      });
+        });
+      } catch (e) {
+        this.sendMessage("oom");
+        reject();
+      }
     });
   }
 
@@ -79,21 +84,26 @@ export class TorManager extends Component {
 
     GlobalState.generateTorPorts();
 
-    this.instance = Module({
-      CustomSocketServer: SocketServer,
-      CustomSocket: TcpSocketWrapper,
-      getPreloadedPackage: (file, size) => this.getPreloadedPackage(file, size),
-      arguments: [
-        "SocksPort",
-        "127.0.0.1:" + GlobalState.port.toString(),
-        "HashedControlPassword",
-        this.hashedPassword,
-        "+__ControlPort", "127.0.0.1:" + GlobalState.controlPort.toString(),
-        "GeoIPFile", "/geoip",
-        "GeoIPv6File", "/geoip6",
-      ],
-      print: what => this.printCallback(what),
-    });
+    try {
+      this.instance = Module({
+        CustomSocketServer: SocketServer,
+        CustomSocket: TcpSocketWrapper,
+        getPreloadedPackage: (file, size) => this.getPreloadedPackage(file, size),
+        arguments: [
+          "SocksPort",
+          "127.0.0.1:" + GlobalState.port.toString(),
+          "HashedControlPassword",
+          this.hashedPassword,
+          "+__ControlPort", "127.0.0.1:" + GlobalState.controlPort.toString(),
+          "GeoIPFile", "/geoip",
+          "GeoIPv6File", "/geoip6",
+        ],
+        print: what => this.printCallback(what),
+      });
+    } catch(e) {
+      this.sendMessage("oom");
+      return;
+    }
 
     this.scheduleControlChannel();
   }
@@ -135,7 +145,7 @@ export class TorManager extends Component {
 
   bootstrapState(state) {
     log("bootstrap: " + state);
-    GlobalState.state = state;
+    GlobalState.setState(state);
     this.sendMessage("bootstrap", {state});
   }
 

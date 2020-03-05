@@ -2,6 +2,8 @@ const MODE_OFF = "off";
 const MODE_ON = "on";
 const MODE_PB = "pb";
 
+const STATE_OOM = -1;
+
 const GlobalState = {
   state: 0,
   mode: null,
@@ -22,6 +24,17 @@ const GlobalState = {
     // In the remote case this happens...
     if (this.port == this.controlPort) {
       this.generateTorPorts();
+    }
+  },
+
+  setState(state) {
+    if (state === STATE_OOM) {
+      this.state = STATE_OOM;
+      return;
+    }
+
+    if (this.state < state) {
+      this.state = state;
     }
   },
 };
