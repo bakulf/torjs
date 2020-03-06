@@ -30,11 +30,6 @@
         "scopes": ["addon_parent"],
         "paths": [["experiments", "TCPSocket"]],
         "script": "./tcp/parent.js"
-      },
-      "child": {
-        "scopes": ["addon_child"],
-        "paths": [["experiments", "TCPSocket"]],
-        "script": "./tcp/child.js"
       }
     }
   },

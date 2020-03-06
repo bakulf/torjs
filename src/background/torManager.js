@@ -1,7 +1,7 @@
 import {Component} from "./component.js";
 import {Logger} from "./logger.js";
 
-import {SocketServer, SocketServerManager, TcpSocketWrapper} from "./tcp.js";
+import {SocketServer, SocketServerManager, TCPSocketWrapper} from "./tcp.js";
 import {Controller} from "./controller.js";
 
 const log = Logger.logger("TorManager");
@@ -87,7 +87,7 @@ export class TorManager extends Component {
     try {
       this.instance = Module({
         CustomSocketServer: SocketServer,
-        CustomSocket: TcpSocketWrapper,
+        CustomSocket: TCPSocketWrapper,
         getPreloadedPackage: (file, size) => this.getPreloadedPackage(file, size),
         arguments: [
           "SocksPort",

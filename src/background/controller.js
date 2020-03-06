@@ -1,4 +1,5 @@
 import {Logger} from "./logger.js";
+import {TCPSocketWrapper} from "./tcp.js";
 
 const log = Logger.logger("Controller");
 
@@ -31,24 +32,14 @@ export class Controller {
   async init(port) {
     log("init");
 
-    this.controlSocket = await browser.experiments.TCPSocket.connect({
-      host: "127.0.0.1", port,
-    });
-
-    this.controlSocket.opened.then(() => this.protocolFlow());
-
-    this.controlSocket.closed.then(() => {
+    this.controlSocket = new TCPSocketWrapper({host: "127.0.0.1", port});
+    this.controlSocket.onclose = () => {
+      this.callbacks.failure();
       this.controlSocket = null;
-    });
+    }
 
-    // Async read.
-    setTimeout(async () => {
-      while (this.controlSocket) {
-        await this.controlSocket.read().then(data => {
-          this.dataAvailable(data);
-        });
-      }
-    }, 0);
+    this.controlSocket.onopen = () => this.protocolFlow();
+    this.controlSocket.onmessage = data => this.dataAvailable(data.data);
   }
 
   async protocolFlow() {
@@ -123,7 +114,7 @@ export class Controller {
 
     const buffer = this.encoder.encode(str).buffer;
     try {
-      await this.controlSocket.write(buffer);
+      await this.controlSocket.send(buffer);
     } catch(e) {
       this.callbacks.failure();
     }

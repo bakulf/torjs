@@ -60,7 +60,7 @@
               "port": {
                 "type": "number",
                 "description": "Port to listen on.",
-                "optional": true,
+                "optional": false,
                 "default": -1
               },
               "useSecureTransport": {
@@ -70,6 +70,74 @@
               }
             }
           }
+        ]
+      },
+      {
+        "name": "closeServer",
+        "description": "This method terminates a TCP server.",
+        "type": "function",
+        "async": true,
+        "parameters": [
+          {
+            "name": "options",
+            "type": "object",
+            "properties": {
+              "serverId": {
+                "type": "number",
+                "description": "Server Id",
+                "optional": false
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "write",
+        "type": "function",
+        "async": true,
+        "parameters": [
+          {
+            "name": "options",
+            "type": "object",
+            "properties": {
+              "socketId": {
+                "type": "number",
+                "description": "Socket ID",
+                "optional": false
+              },
+              "data": {
+                "type": "object",
+                "isInstanceOf": "ArrayBuffer",
+                "optional": false,
+                "description": "Data to send"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "close",
+        "type": "function",
+        "async": true,
+        "parameters": [
+          {
+            "name": "options",
+            "type": "object",
+            "properties": {
+              "socketId": {
+                "type": "number",
+                "description": "Socket ID",
+                "optional": false
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "pollEventQueue",
+        "type": "function",
+        "async": true,
+        "parameters": [
         ]
       }
     ]
