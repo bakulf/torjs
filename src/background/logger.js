@@ -8,24 +8,21 @@ let self;
 export class Logger extends Component {
   constructor(receiver) {
     super(receiver);
-    this.debuggingMode = false;
     this.logMessages = [];
 
     this.filteredCategories = [
-      //"Controller",
-      //"Main",
-      //"Network",
-      //"TCP",
-      //"TorManager",
-      //"UI",
+      "Controller",
+      "Main",
+      "Network",
+      "TCP",
+      "TorManager",
+      "UI",
     ];
 
     self = this;
   }
 
-  async init() {
-    this.debuggingMode = true;
-  }
+  async init() {}
 
   getLogs() {
     return this.logMessages;
@@ -56,7 +53,7 @@ export class Logger extends Component {
 
     const m = `*** SPB *** [${now}] [${category}] - ${msg} ${r}`;
 
-    if (this.debuggingMode && !this.filteredCategories.includes(category)) {
+    if (!this.filteredCategories.includes(category)) {
       console.log(m);
     }
 
