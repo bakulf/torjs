@@ -126,7 +126,13 @@ const SocketManager = {
 
   registerSocket(socket) {
     const id = ++this.socketId;
-    this.sockets.set(id, socket);
+    const socketData = {
+      socket,
+      waitForDrain: false,
+      buffers: [],
+    };
+
+    this.sockets.set(id, socketData);
 
     function serializeSocket(id, socket) {
       return {
@@ -163,23 +169,53 @@ const SocketManager = {
       });
     };
 
+    socket.ondrain = () => {
+      socketData.waitForDrain = false;
+
+      // Let's write what we have.
+      while (socketData.buffers.length && !socketData.waitForDrain) {
+        const buffer = socketData.buffers.shift();
+        this.writeInternal(socketData, buffer);
+      }
+    };
+
+    socket.onerror = () => {
+      // TODO
+    };
+
     return serializeSocket(id, socket);
   },
 
   write(socketId, data) {
-    const socket = SocketManager.sockets.get(socketId);
-    if (!socket) {
-      console.error("Invalid socket Id");
+    const socketData = SocketManager.sockets.get(socketId);
+    if (!socketData) {
+      console.warn(`Invalid socket Id: ${socketId}`);
+      console.trace();
       return false;
     }
 
-    return socket.send(data);
+    // We have to wait if we are waiting for drain, or if we have pending
+    // messages.
+    if (socketData.waitForDrain || socketData.buffers.length) {
+      socketData.buffers.push(data);
+      return true;
+    }
+
+    this.writeInternal(socketData, data);
+    return true;
+  },
+
+  writeInternal(socketData, data) {
+    const shouldContinue = socketData.socket.send(data);
+    if (!shouldContinue) {
+      socketData.waitForDrain = true;
+    }
   },
 
   close(socketId) {
-    const socket = SocketManager.sockets.get(socketId);
-    if (socket) {
-      socket.close();
+    const socketData = SocketManager.sockets.get(socketId);
+    if (socketData) {
+      socketData.socket.close();
       this.sockets.delete(socketId);
     }
   }

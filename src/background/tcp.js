@@ -41,6 +41,9 @@ class TCPSocket {
     this.CLOSED = 3;
 
     this.readyState = TCPSocket.CONNECTING;
+
+    // List of pending ops in case the initialization is async.
+    this.pendingOps = [];
   }
 
   open() {
@@ -59,18 +62,33 @@ class TCPSocket {
       return;
     }
 
+    this.readyState = TCPSocket.CLOSING;
+
+    const op = () => {
+      browser.experiments.TCPSocket.close({ socketId: this.socket.id });
+    };
+
+    if (this.socket instanceof Promise) {
+      log("TCPSocket postpone the close() call");
+      this.pendingOps.push(op);
+      return;
+    }
+
+    op();
+  }
+
+  closeFully() {
+    log("TCPSocket close fully");
+
+    if (this.readyState === TCPSocket.CLOSED) {
+      return;
+    }
+
     this.readyState = TCPSocket.CLOSED;
 
     if (this.onclose) {
       this.onclose();
     }
-
-    if (this.socket instanceof Promise) {
-      log("TCPSocket postpone close call");
-      return;
-    }
-
-    browser.experiments.TCPSocket.close({ socketId: this.socket.id });
   }
 
   dataReceived(data) {
@@ -82,6 +100,13 @@ class TCPSocket {
   }
 
   async send(data) {
+    log("TCP send data");
+
+    if (this.socket instanceof Promise) {
+      log("TCPSocket postpone the send() call");
+      await new Promise(resolve => this.pendingOps.push(resolve));
+    }
+
     return browser.experiments.TCPSocket.write({ socketId: this.socket.id, data });
   }
 };
@@ -117,17 +142,15 @@ class TCPSocketWrapper extends TCPSocket {
     socket.then(s => this.socketReady(s));
   }
 
-  socketReady(socket) {
+  async socketReady(socket) {
     log("TCPSocketWrapper socket ready");
 
-    if (this.readyState != TCPSocket.CLOSED) {
-      this.socket = socket;
-      EventManager.registerSocket(socket, this);
-      return;
-    }
+    this.socket = socket;
+    EventManager.registerSocket(socket, this);
 
-    log("TCPSocketWrapper socket ready - closing");
-    browser.experiments.TCPSocket.close({ socketId: socket.id });
+    while (this.pendingOps.length) {
+      await this.pendingOps.shift()();
+    }
   }
 };
 
@@ -207,6 +230,40 @@ const EventManager = {
       remoteAddress = remoteAddress.slice(7);
     }
 
+    function isLocal(hostname) {
+      return (/^(.+\.)?localhost$/.test(hostname) ||
+        /^(.+\.)?localhost6$/.test(hostname) ||
+        /^(.+\.)?localhost.localdomain$/.test(hostname) ||
+        /^(.+\.)?localhost6.localdomain6$/.test(hostname) ||
+        // https://tools.ietf.org/html/rfc2606
+        /\.example$/.test(hostname) ||
+        /\.invalid$/.test(hostname) ||
+        /\.test$/.test(hostname) ||
+        // https://tools.ietf.org/html/rfc8375
+        /^(.+\.)?home\.arpa$/.test(hostname) ||
+        // https://tools.ietf.org/html/rfc6762
+        /\.local$/.test(hostname) ||
+        // Loopback
+        /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+        // Link Local
+        /^169\.254\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+        // Private use
+        /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+        // Private use
+        /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+        // Private use
+        /^172\.1[6-9]\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+        /^172\.2[0-9]\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+        /^172\.3[0-1]\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+        /\[[0:]+1\]/.test(hostname));
+    }
+
+    // We want to accept only requests from localhost.
+    if (!isLocal(remoteAddress)) {
+      browser.experiments.TCPSocket.close({ socketId: event.socket.id });
+      return;
+    }
+
     const socket = new TCPSocket(event.socket, remoteAddress, event.socket.port);
     this.registerSocket(event.socket, socket);
 
@@ -239,10 +296,12 @@ const EventManager = {
   socketCloseEvent(event) {
     log(`Close event: ${event.socket.id}`);
     const socket = this.sockets.get(event.socket.id);
-    if (socket) {
-      this.sockets.delete(event.socket.id);
-      socket.close();
+    if (!socket) {
+      throw new Error("Invalid socket request");
     }
+
+    this.sockets.delete(event.socket.id);
+    socket.closeFully();
   },
 
   socketDataEvent(event) {
