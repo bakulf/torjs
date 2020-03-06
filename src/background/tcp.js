@@ -33,7 +33,6 @@ class TCPSocket {
       remotePort,
     };
 
-
     // Seems that WebSockets have these both in prototype and as 'static' properties.
     this.CONNECTING = 0;
     this.OPEN = 1;
@@ -52,6 +51,14 @@ class TCPSocket {
     this.readyState = TCPSocket.OPEN;
     if (this.onopen) {
       this.onopen();
+    }
+  }
+
+  error() {
+    log("TCPSocket error");
+
+    if (this.onerror) {
+      this.onerror();
     }
   }
 
@@ -205,6 +212,10 @@ const EventManager = {
         this.socketCloseEvent(event);
         break;
 
+      case "error":
+        this.socketErrorEvent(event);
+        break;
+
       case "data":
         this.socketDataEvent(event);
         break;
@@ -296,12 +307,21 @@ const EventManager = {
   socketCloseEvent(event) {
     log(`Close event: ${event.socket.id}`);
     const socket = this.sockets.get(event.socket.id);
+    if (socket) {
+      this.sockets.delete(event.socket.id);
+      socket.closeFully();
+    }
+  },
+
+  socketErrorEvent(event) {
+    log(`Error event: ${event.socket.id}`);
+    const socket = this.sockets.get(event.socket.id);
     if (!socket) {
       throw new Error("Invalid socket request");
     }
 
+    socket.error();
     this.sockets.delete(event.socket.id);
-    socket.closeFully();
   },
 
   socketDataEvent(event) {

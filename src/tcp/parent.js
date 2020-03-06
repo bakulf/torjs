@@ -180,7 +180,12 @@ const SocketManager = {
     };
 
     socket.onerror = () => {
-      // TODO
+      EventQueue.emit({
+        op: "error",
+        socket: serializeSocket(id, socket),
+      });
+
+      this.sockets.delete(id);
     };
 
     return serializeSocket(id, socket);

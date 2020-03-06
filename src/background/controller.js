@@ -39,7 +39,13 @@ export class Controller {
     }
 
     this.controlSocket.onopen = () => this.protocolFlow();
+    this.controlSocket.onerror = () => this.errorEvent();
     this.controlSocket.onmessage = data => this.dataAvailable(data.data);
+  }
+
+  errorEvent() {
+    this.callbacks.failure();
+    this.controlSocket = null;
   }
 
   async protocolFlow() {
