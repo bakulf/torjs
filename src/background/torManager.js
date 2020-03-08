@@ -29,6 +29,12 @@ export class TorManager extends Component {
     this.startTor();
   }
 
+  async restartTor() {
+    if (this.controller) {
+      await this.controller.terminate();
+    }
+  }
+
   async preFetchTorData() {
     const url = browser.runtime.getURL("tor/tor.data");
     log(`Resource URL: ${url}`);
@@ -83,6 +89,7 @@ export class TorManager extends Component {
     }
 
     GlobalState.generateTorPorts();
+    GlobalState.resetState();
 
     try {
       this.instance = Module({
@@ -132,6 +139,7 @@ export class TorManager extends Component {
     const controller = new Controller(this.password, {
       bootstrap: state => this.bootstrapState(state),
       failure: () => this.scheduleControlChannel(),
+      terminate: () => this.startTor(),
       circuitReady: data => this.sendMessage("circuitReady", data),
     });
 

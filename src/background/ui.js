@@ -44,7 +44,20 @@ export class UI extends Component {
       });
 
       port.onMessage.addListener(async msg => {
-        this.sendMessage("setMode", { mode: msg.mode });
+        log(`Message received: ${msg.op}`);
+        switch (msg.op) {
+          case "mode":
+            this.sendMessage("setMode", { mode: msg.mode });
+            break;
+
+          case "restart":
+            this.sendMessage("restartTor");
+            break;
+
+          default:
+            console.log(`Invalid UI request: ${msg.op}`);
+            break;
+        }
       });
 
       this.portUpdate();

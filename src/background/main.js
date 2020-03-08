@@ -103,6 +103,9 @@ class Main {
       case "oom":
         return this.oom();
 
+      case "restartTor":
+        return this.torManager.restartTor();
+
       default:
         console.error("Invalid event: " + type);
         throw new Error("Invalid event: " + type);

@@ -1,12 +1,16 @@
 let port = browser.runtime.connect({name: "panel"});
 
 let mode = document.getElementById("mode");
-mode.onchange = () => port.postMessage({mode: mode.value});
+mode.onchange = () => port.postMessage({op: "mode", mode: mode.value});
 
 document.getElementById("torLog").onclick = () => {
   const url = browser.runtime.getURL("pages/log.html");
   browser.tabs.create({ url });
   window.close();
+}
+
+document.getElementById("torRestart").onclick = () => {
+  port.postMessage({op: "restart"});
 }
 
 port.onMessage.addListener(msg => {

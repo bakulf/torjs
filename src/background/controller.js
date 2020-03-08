@@ -27,6 +27,9 @@ export class Controller {
     // What is in charge to control the protocol flow.
     this.handler = null;
     this.nextHandlers = [];
+
+    // We are not terminating yet.
+    this.terminating = false;
   }
 
   async init(port) {
@@ -34,8 +37,7 @@ export class Controller {
 
     this.controlSocket = new TCPSocketWrapper({host: "127.0.0.1", port});
     this.controlSocket.onclose = () => {
-      this.callbacks.failure();
-      this.controlSocket = null;
+      this.callTerminate();
     }
 
     this.controlSocket.onopen = () => this.protocolFlow();
@@ -43,9 +45,22 @@ export class Controller {
     this.controlSocket.onmessage = data => this.dataAvailable(data.data);
   }
 
+  callFailure() {
+    if (this.controlSocket && !this.terminating) {
+      this.controlSocket = null;
+      this.callbacks.failure();
+    }
+  }
+
+  callTerminate() {
+    if (this.controlSocket) {
+      this.controlSocket = null;
+      this.callbacks.terminate();
+    }
+  }
+
   errorEvent() {
-    this.callbacks.failure();
-    this.controlSocket = null;
+    this.callFailure();
   }
 
   async protocolFlow() {
@@ -122,7 +137,7 @@ export class Controller {
     try {
       await this.controlSocket.send(buffer);
     } catch(e) {
-      this.callbacks.failure();
+      this.callFailure();
     }
   }
 
@@ -158,7 +173,7 @@ export class Controller {
           break;
 
         case HANDLER_FAILURE:
-          this.callbacks.failure();
+          this.callFailure();
           break;
 
         case HANDLER_IGNORED:
@@ -539,5 +554,17 @@ export class Controller {
 
   circuitReady(circuit) {
     this.callbacks.circuitReady( {uniqueId: circuit.uniqueId, ips: circuit.ips});
+  }
+
+  async terminate() {
+    log("Terminate");
+
+    this.terminating = true;
+
+    if (this.controlSocket) {
+      this.controlSocket.close();
+    } else {
+      this.callTerminate();
+    }
   }
 };

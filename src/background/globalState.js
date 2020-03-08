@@ -27,6 +27,10 @@ const GlobalState = {
     }
   },
 
+  resetState() {
+    this.state = 0;
+  },
+
   setState(state) {
     if (state === STATE_OOM) {
       this.state = STATE_OOM;
