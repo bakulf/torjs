@@ -92,6 +92,14 @@
         ]
       },
       {
+        "name": "closeAllServers",
+        "description": "This method terminates all the TCP servers.",
+        "type": "function",
+        "async": true,
+        "parameters": [
+        ]
+      },
+      {
         "name": "write",
         "type": "function",
         "async": true,

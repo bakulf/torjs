@@ -139,7 +139,7 @@ export class TorManager extends Component {
     const controller = new Controller(this.password, {
       bootstrap: state => this.bootstrapState(state),
       failure: () => this.scheduleControlChannel(),
-      terminate: () => this.startTor(),
+      terminate: () => this.terminatingTor(),
       circuitReady: data => this.sendMessage("circuitReady", data),
     });
 
@@ -158,6 +158,8 @@ export class TorManager extends Component {
   }
 
   async getCircuit(circuit) {
+    log(`Get circuit ${circuit}`);
+
     if (!this.controller) {
       return null;
     }
@@ -167,5 +169,14 @@ export class TorManager extends Component {
 
   getTorLog() {
     return { torLog: this.torLog };
+  }
+
+  async terminatingTor() {
+    console.log("Terminating all the servers");
+
+    await browser.experiments.TCPSocket.closeAllServers();
+
+    this.controller = null;
+    this.startTor();
   }
 }

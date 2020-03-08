@@ -117,6 +117,13 @@ const ServerManager = {
       this.servers.delete(serverId);
     }
   },
+
+  closeAll() {
+    this.servers.forEach(server => {
+      server.close();
+    });
+    this.servers.clear();
+  },
 };
 
 // This object keeps track of any active TCPSocket.
@@ -272,6 +279,13 @@ global.TCPSocket = class extends ExtensionAPI {
             WindowlessBrowser.ready.then(() =>
               new context.cloneScope.Promise((resolve, reject) => {
                 ServerManager.close(options.serverId);
+                resolve();
+              })),
+
+          closeAllServers: () =>
+            WindowlessBrowser.ready.then(() =>
+              new context.cloneScope.Promise((resolve, reject) => {
+                ServerManager.closeAll();
                 resolve();
               })),
 

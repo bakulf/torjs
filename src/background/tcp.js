@@ -373,6 +373,8 @@ class SocketServer {
   }
 
   close() {
+    log("Server closing...");
+
     if (this.closed) {
       return;
     }

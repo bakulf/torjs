@@ -84,6 +84,8 @@ export class Controller {
     );
 
     log("Take ownership...");
+    // in this way, when the controlsocket is closed, the TOR instance
+    // terminates.
     await this.addHandler(
       {
         write: "TAKEOWNERSHIP\n",
