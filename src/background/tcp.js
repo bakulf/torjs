@@ -328,7 +328,9 @@ const EventManager = {
     log(`Data event: ${event.socket.id}`);
     const socket = this.sockets.get(event.socket.id);
     if (!socket) {
-      throw new Error("Invalid socket request");
+      // It can happen that we receive a data package after a close. We should
+      // ignore it.
+      return;
     }
 
     socket.dataReceived(event.data);

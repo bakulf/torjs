@@ -194,20 +194,21 @@ const SocketManager = {
   write(socketId, data) {
     const socketData = SocketManager.sockets.get(socketId);
     if (!socketData) {
+      // XXX This can happen if we have write() calls after a close(). This
+      // should not happen, but it does. I don't know if it's a bug in the TOR
+      // implementation or in our code. Would be nice to investigate.
       console.warn(`Invalid socket Id: ${socketId}`);
-      console.trace();
-      return false;
+      return;
     }
 
     // We have to wait if we are waiting for drain, or if we have pending
     // messages.
     if (socketData.waitForDrain || socketData.buffers.length) {
       socketData.buffers.push(data);
-      return true;
+      return;
     }
 
     this.writeInternal(socketData, data);
-    return true;
   },
 
   writeInternal(socketData, data) {
@@ -263,11 +264,8 @@ global.TCPSocket = class extends ExtensionAPI {
           write: options =>
             WindowlessBrowser.ready.then(() =>
               new context.cloneScope.Promise((resolve, reject) => {
-                if (SocketManager.write(options.socketId, options.data)) {
-                  resolve()
-                  return;
-                }
-                reject();
+                SocketManager.write(options.socketId, options.data);
+                resolve();
               })),
 
           closeServer: options =>
