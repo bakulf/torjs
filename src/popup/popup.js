@@ -25,8 +25,6 @@ port.onMessage.addListener(msg => {
   }
 
   if (msg.circuit) {
-    console.log(msg.circuit.ips);
-
     const ul = document.getElementById("circuit");
     while (ul.firstChild) ul.firstChild.remove();
 
