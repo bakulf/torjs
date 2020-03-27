@@ -76,6 +76,14 @@ const WindowlessBrowser = {
 // Let's create our window.
 WindowlessBrowser.init();
 
+// Extra check about the extension allowed to use this experimental API.
+function checkExtensionId(context) {
+  if (context.extension.id === "super-private-browsing@mozilla.com") {
+    return Promise.resolve();
+  }
+  return Promise.reject();
+}
+
 // This object contains all the active servers.
 const ServerManager = {
   servers: new Map(),
@@ -240,66 +248,73 @@ global.TCPSocket = class extends ExtensionAPI {
       experiments: {
         TCPSocket: {
           listen: options =>
-            WindowlessBrowser.ready.then(() =>
-              new context.cloneScope.Promise((resolve, reject) => {
-                try {
-                  const server = WindowlessBrowser.window.navigator.mozTCPSocket.listen(options.port, {
-                    binaryType: "arraybuffer"
-                  });
+            checkExtensionId(context).then(() =>
+              WindowlessBrowser.ready.then(() =>
+                new Promise((resolve, reject) => {
+                  try {
+                    const server = WindowlessBrowser.window.navigator.mozTCPSocket.listen(options.port, {
+                      binaryType: "arraybuffer"
+                    });
 
-                  resolve(ServerManager.registerServer(server));
-                } catch (e) {
-                  reject(e);
-                }
-              })),
+                    resolve(ServerManager.registerServer(server));
+                  } catch (e) {
+                    reject(e);
+                  }
+                }))),
 
           connect: options =>
-            WindowlessBrowser.ready.then(() =>
-              new context.cloneScope.Promise((resolve, reject) => {
-                try {
-                  const socket = new WindowlessBrowser.window.TCPSocket(options.host, options.port, {
-                    useSecureTransport: options.useSecureTransport,
-                    binaryType: "arraybuffer"
-                  });
+            checkExtensionId(context).then(() =>
+              WindowlessBrowser.ready.then(() =>
+                new Promise((resolve, reject) => {
+                  try {
+                    const socket = new WindowlessBrowser.window.TCPSocket(options.host, options.port, {
+                      useSecureTransport: options.useSecureTransport,
+                      binaryType: "arraybuffer"
+                    });
 
-                  resolve(SocketManager.registerSocket(socket));
-                } catch (e) {
-                  reject(e);
-                }
-              })),
+                    resolve(SocketManager.registerSocket(socket));
+                  } catch (e) {
+                    reject(e);
+                  }
+                }))),
 
           write: options =>
-            WindowlessBrowser.ready.then(() =>
-              new context.cloneScope.Promise((resolve, reject) => {
-                SocketManager.write(options.socketId, options.data);
-                resolve();
-              })),
+            checkExtensionId(context).then(() =>
+              WindowlessBrowser.ready.then(() =>
+                new Promise((resolve, reject) => {
+                  SocketManager.write(options.socketId, options.data);
+                  resolve();
+                }))),
 
           closeServer: options =>
-            WindowlessBrowser.ready.then(() =>
-              new context.cloneScope.Promise((resolve, reject) => {
-                ServerManager.close(options.serverId);
-                resolve();
-              })),
+            checkExtensionId(context).then(() =>
+              WindowlessBrowser.ready.then(() =>
+                new Promise((resolve, reject) => {
+                  ServerManager.close(options.serverId);
+                  resolve();
+                }))),
 
           closeAllServers: () =>
-            WindowlessBrowser.ready.then(() =>
-              new context.cloneScope.Promise((resolve, reject) => {
-                ServerManager.closeAll();
-                resolve();
-              })),
+            checkExtensionId(context).then(() =>
+              WindowlessBrowser.ready.then(() =>
+                new Promise((resolve, reject) => {
+                  ServerManager.closeAll();
+                  resolve();
+                }))),
 
           close: options =>
-            WindowlessBrowser.ready.then(() =>
-              new context.cloneScope.Promise((resolve, reject) => {
-                SocketManager.close(options.socketId);
-                resolve();
-              })),
+            checkExtensionId(context).then(() =>
+              WindowlessBrowser.ready.then(() =>
+                new Promise((resolve, reject) => {
+                  SocketManager.close(options.socketId);
+                  resolve();
+                }))),
 
           pollEventQueue: () =>
-            new context.cloneScope.Promise(resolve => {
-              EventQueue.addRequest(resolve);
-            }),
+            checkExtensionId(context).then(() =>
+              new Promise(resolve => {
+                EventQueue.addRequest(resolve);
+              })),
         }
       }
     }
